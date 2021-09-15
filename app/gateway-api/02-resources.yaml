@@ -1,0 +1,64 @@
+---
+kind: Gateway
+apiVersion: networking.x-k8s.io/v1alpha1
+metadata:
+  name: traefik-gateway
+  namespace: app
+spec:
+  gatewayClassName: traefik-gateway-class
+  listeners:  # Use GatewayClass defaults for listener definition.
+    # - protocol: HTTP
+    #   port: 80
+    #   routes:
+    #     kind: HTTPRoute
+    #     namespaces:
+    #       from: Same
+    #     selector:
+    #       matchLabels:
+    #         app: app
+    - protocol: HTTPS
+      port: 443
+      tls:
+        certificateRef:
+          group: "core"
+          kind: "Secret"
+          name: "wildcard-ank"
+      routes:
+        kind: HTTPRoute
+        namespaces:
+          from: Same
+        selector:
+          matchLabels:
+            app: app
+
+---
+kind: HTTPRoute
+apiVersion: networking.x-k8s.io/v1alpha1
+metadata:
+  name: http-app-1
+  namespace: app
+  labels:
+    app: app
+spec:
+  hostnames:
+    - "DOMAIN"
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /exact
+      forwardTo:
+        - serviceName: app
+          port: 80
+          weight: 1
+    - matches:
+        - path:
+            type: Prefix
+            value: /
+      forwardTo:
+        - backendRef:
+            group: traefik.containo.us
+            kind: TraefikService
+            name: legacy@file
+          weight: 1
+          port: 80
